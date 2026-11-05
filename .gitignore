@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment
+.env
+*.env
+!.env.example
+
+# Build
+dist/
+.next/
+*.tsbuildinfo
+
+# Prisma generated
+apps/api/node_modules/.prisma/
+
+# Docker
+pgdata/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test
+coverage/
+.cache/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
