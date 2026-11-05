@@ -13,16 +13,5 @@
     "test:e2e": "pnpm --filter api test:e2e",
     "lint": "pnpm --recursive lint",
     "format": "pnpm --recursive format"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@prisma/client",
-      "@prisma/engines",
-      "prisma",
-      "bcrypt",
-      "esbuild",
-      "sharp",
-      "msgpackr-extract"
-    ]
   }
 }
