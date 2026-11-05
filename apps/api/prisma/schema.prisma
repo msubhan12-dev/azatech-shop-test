@@ -1,0 +1,184 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  admin
+  cashier
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  COMPLETED
+  CANCELLED
+}
+
+enum StockMovementType {
+  INITIAL
+  ORDER_OUT
+  CANCEL_RESTORE
+  ADJUSTMENT
+}
+
+enum Gender {
+  Pria
+  Wanita
+}
+
+model User {
+  id        BigInt   @id @default(autoincrement())
+  name      String   @db.VarChar(255)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  role      Role     @default(cashier)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  orders          Order[]
+  refreshTokens   RefreshToken[]
+  stockMovements  StockMovement[]
+
+  @@index([email])
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique @db.VarChar(512)
+  userId    BigInt   @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime @map("expires_at")
+  revoked   Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([token])
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Product {
+  id                 BigInt    @id @default(autoincrement())
+  productCode        String    @unique @db.VarChar(50) @map("product_code")
+  productName        String    @db.VarChar(255) @map("product_name")
+  stock              Int       @default(0)
+  price              Decimal   @db.Decimal(12, 2)
+  lowStockThreshold  Int       @default(5) @map("low_stock_threshold")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+  deletedAt          DateTime? @map("deleted_at")
+
+  orderItems     OrderItem[]
+  stockMovements StockMovement[]
+
+  @@index([productCode])
+  @@index([productName])
+  @@index([deletedAt])
+  @@map("products")
+}
+
+model Customer {
+  id              String    @id @default(uuid())
+  customerName    String    @db.VarChar(255) @map("customer_name")
+  customerAddress String    @db.VarChar(500) @map("customer_address")
+  gender          Gender
+  birthDate       DateTime? @map("birth_date") @db.Date
+  phone           String?   @db.VarChar(20)
+  email           String?   @db.VarChar(255)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
+
+  orders Order[]
+
+  @@index([customerName])
+  @@index([email])
+  @@index([deletedAt])
+  @@map("customers")
+}
+
+model Order {
+  id          BigInt      @id @default(autoincrement())
+  orderNumber String      @unique @db.VarChar(30) @map("order_number")
+  customerId  String      @map("customer_id")
+  customer    Customer    @relation(fields: [customerId], references: [id])
+  createdBy   BigInt      @map("created_by")
+  creator     User        @relation(fields: [createdBy], references: [id])
+  status      OrderStatus @default(PENDING)
+  totalAmount Decimal     @db.Decimal(14, 2) @map("total_amount")
+  paidAt      DateTime?   @map("paid_at")
+  shippedAt   DateTime?   @map("shipped_at")
+  completedAt DateTime?   @map("completed_at")
+  cancelledAt DateTime?   @map("cancelled_at")
+  cancelReason String?    @db.VarChar(500) @map("cancel_reason")
+  orderDate   DateTime    @default(now()) @map("order_date")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  items OrderItem[]
+
+  @@index([customerId])
+  @@index([createdBy])
+  @@index([status])
+  @@index([orderDate])
+  @@index([orderNumber])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        BigInt  @id @default(autoincrement())
+  orderId   BigInt  @map("order_id")
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId BigInt  @map("product_id")
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int
+  unitPrice Decimal @db.Decimal(12, 2) @map("unit_price")
+  subtotal  Decimal @db.Decimal(14, 2)
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
+}
+
+model StockMovement {
+  id            BigInt            @id @default(autoincrement())
+  productId     BigInt            @map("product_id")
+  product       Product           @relation(fields: [productId], references: [id])
+  type          StockMovementType
+  quantityChange Int              @map("quantity_change")
+  stockAfter    Int               @map("stock_after")
+  referenceType String?           @db.VarChar(50) @map("reference_type")
+  referenceId   String?           @db.VarChar(50) @map("reference_id")
+  note          String?           @db.VarChar(500)
+  createdBy     BigInt?           @map("created_by")
+  creator       User?             @relation(fields: [createdBy], references: [id])
+  createdAt     DateTime          @default(now()) @map("created_at")
+
+  @@index([productId])
+  @@index([createdAt])
+  @@map("stock_movements")
+}
+
+model IdempotencyKey {
+  id          String   @id @default(uuid())
+  key         String   @unique @db.VarChar(255)
+  payload     Json
+  response    Json?
+  status      String   @default("processing") @db.VarChar(20)
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([key])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}
